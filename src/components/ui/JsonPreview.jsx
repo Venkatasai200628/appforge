@@ -5,7 +5,7 @@ import { buildEmptyRecordsFromSchema, loadAppRecords, saveAppRecords } from '@/l
 import { getAppBaseUrl, getUserAppShareLink, getUserInviteLink } from '@/lib/appUrl';
 import { useStore } from '@/lib/store';
 import { 
-  Database, Globe, Layout, Shield, Terminal, CheckCircle2, XCircle, 
+  Database, Globe, Layout, Shield, Terminal, CheckCircle2, XCircle, X,
   ChevronDown, ChevronRight, Settings, Plus, Trash2, 
   Users, Briefcase, DollarSign, TrendingUp, Sparkles, Send, Share2, 
   ExternalLink, Lock, Link2, 
@@ -282,10 +282,52 @@ function AppPreview({ output, onModifyApp, onBackToGenerate, isExampleBlueprint 
   // Add record dynamic form submit
   const handleAddRecord = (e) => {
     e.preventDefault();
+
+    // Find the main descriptor field of the table (e.g. name, title, patient, etc.)
+    const mainField = activeColumns.find(col => 
+      ['name', 'title', 'patient', 'customer_name', 'customer', 'habit', 'task', 'product'].includes(col.name.toLowerCase())
+    );
+
+    if (mainField) {
+      const mainVal = newFields[mainField.name];
+      if (!mainVal || String(mainVal).trim() === '') {
+        alert(`Please enter a valid ${mainField.name.replace(/_/g, ' ')}!`);
+        return;
+      }
+    } else {
+      // General fallback check: make sure they entered at least one field
+      const hasAnyInput = Object.values(newFields).some(val => 
+        val !== undefined && val !== null && String(val).trim() !== ''
+      );
+      if (!hasAnyInput) {
+        alert("Please enter at least one field value before saving!");
+        return;
+      }
+    }
+
     const newRow = {
-      id: 'row_' + Math.random().toString(36).slice(2, 7),
-      ...newFields
+      id: 'row_' + Math.random().toString(36).slice(2, 7)
     };
+
+    // Ensure every schema field has a default value if not provided
+    activeColumns.forEach(col => {
+      if (col.name === 'id') return;
+      const type = (col.type || '').toLowerCase();
+      let val = newFields[col.name];
+      if (val === undefined || val === '') {
+        if (type.includes('bool') || type.includes('boolean')) {
+          val = false;
+        } else if (type.includes('int') || type.includes('decimal') || type.includes('float') || type.includes('number')) {
+          val = 0;
+        } else if (type.includes('date') || type.includes('time') || col.name.includes('_at') || col.name.includes('date')) {
+          val = new Date().toISOString().split('T')[0];
+        } else {
+          val = '';
+        }
+      }
+      newRow[col.name] = val;
+    });
+
     if (activeTableKey === 'habits') {
       if (newRow.completed_today === undefined) newRow.completed_today = false;
       if (newRow.streak === undefined) newRow.streak = 0;
@@ -293,10 +335,7 @@ function AppPreview({ output, onModifyApp, onBackToGenerate, isExampleBlueprint 
     }
     if (activeTableKey === 'deals' && !newRow.stage) newRow.stage = 'Lead';
     if (activeTableKey === 'customers' && !newRow.status) newRow.status = 'Active';
-    if (!newRow.created_at && !newRow.date) {
-      newRow.date = new Date().toISOString().split('T')[0];
-      newRow.created_at = new Date().toISOString().split('T')[0];
-    }
+
     setDbRecords(prev => ({
       ...prev,
       [activeTableKey]: [newRow, ...(prev[activeTableKey] || [])]
@@ -867,7 +906,8 @@ function AppPreview({ output, onModifyApp, onBackToGenerate, isExampleBlueprint 
 
                             <button 
                               onClick={() => setShowAddModal(true)}
-                              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-650 hover:bg-indigo-700 text-white font-bold text-[11px] transition-all shadow-sm"
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-white font-bold text-[11px] transition-all shadow-sm hover:brightness-95"
+                              style={{ backgroundColor: primaryColor }}
                             >
                               <Plus size={11} /> Add New Record
                             </button>
@@ -1047,7 +1087,7 @@ function AppPreview({ output, onModifyApp, onBackToGenerate, isExampleBlueprint 
                         <span className="truncate">{item.name}</span>
                       </div>
                       {item.badge && (
-                        <span className="px-1.5 py-0.2 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-650 dark:text-indigo-400 font-extrabold text-[8px] uppercase tracking-wide">
+                        <span className="px-1.5 py-0.2 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 font-extrabold text-[8px] uppercase tracking-wide">
                           {item.badge}
                         </span>
                       )}
@@ -1408,7 +1448,7 @@ function AppPreview({ output, onModifyApp, onBackToGenerate, isExampleBlueprint 
                         <div className="space-y-2">
                           {['New user registered alerts', 'Real-time record update notifications', 'Daily analytical updates digests'].map(label => (
                             <label key={label} className="flex items-center gap-2 text-xs font-semibold text-slate-655 dark:text-slate-350 cursor-pointer select-none">
-                              <input type="checkbox" defaultChecked className="rounded text-indigo-650 focus:ring-indigo-400 cursor-pointer" />
+                              <input type="checkbox" defaultChecked className="rounded text-indigo-600 focus:ring-indigo-400 cursor-pointer" />
                               {label}
                             </label>
                           ))}
@@ -1531,7 +1571,7 @@ function AppPreview({ output, onModifyApp, onBackToGenerate, isExampleBlueprint 
                             className={clsx('w-full py-1.5 text-[10px] font-bold uppercase rounded-lg border shadow-xs transition-colors',
                               isConnected 
                                 ? 'bg-white hover:bg-slate-50 border-red-200 text-red-500 hover:text-red-600 dark:bg-slate-900 dark:hover:bg-slate-800' 
-                                : 'bg-indigo-600 hover:bg-indigo-750 border-indigo-650 text-white'
+                                : 'bg-indigo-600 hover:bg-indigo-750 border-indigo-600 text-white'
                             )}
                           >
                             {isConnected ? 'Disconnect' : 'Connect with credentials'}
@@ -1713,7 +1753,6 @@ app.listen(<span className="text-blue-400">3000</span>, () =&gt; console.log(<sp
                       <label className="text-[10px] font-bold text-slate-400 uppercase">{label}</label>
                       {isBool ? (
                         <select 
-                          required
                           value={newFields[col.name] !== undefined ? String(newFields[col.name]) : 'false'}
                           onChange={e => setNewFields(p => ({ ...p, [col.name]: e.target.value === 'true' }))}
                           className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-850 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-400 cursor-pointer"
@@ -1723,7 +1762,6 @@ app.listen(<span className="text-blue-400">3000</span>, () =&gt; console.log(<sp
                         </select>
                       ) : col.name.includes('status') ? (
                         <select
-                          required
                           value={newFields[col.name] || ''}
                           onChange={e => setNewFields(p => ({ ...p, [col.name]: e.target.value }))}
                           className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-850 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-400 cursor-pointer"
@@ -1756,7 +1794,6 @@ app.listen(<span className="text-blue-400">3000</span>, () =&gt; console.log(<sp
                       ) : isDate ? (
                         <input 
                           type="date"
-                          required
                           value={newFields[col.name] || ''}
                           onChange={e => setNewFields(p => ({ ...p, [col.name]: e.target.value }))}
                           className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-850 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-400 cursor-pointer"
@@ -1764,7 +1801,6 @@ app.listen(<span className="text-blue-400">3000</span>, () =&gt; console.log(<sp
                       ) : isNum ? (
                         <input 
                           type="number"
-                          required
                           step="any"
                           placeholder={`Enter ${label}`}
                           value={newFields[col.name] || ''}
@@ -1774,7 +1810,6 @@ app.listen(<span className="text-blue-400">3000</span>, () =&gt; console.log(<sp
                       ) : (
                         <input 
                           type="text"
-                          required
                           placeholder={`Enter ${label}`}
                           value={newFields[col.name] || ''}
                           onChange={e => setNewFields(p => ({ ...p, [col.name]: e.target.value }))}
@@ -1790,7 +1825,8 @@ app.listen(<span className="text-blue-400">3000</span>, () =&gt; console.log(<sp
               <div className="flex gap-2 pt-2 select-none">
                 <button 
                   type="submit" 
-                  className="flex-1 py-2 bg-indigo-650 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm uppercase tracking-wider transition-colors"
+                  className="flex-1 py-2 text-white font-bold text-xs rounded-xl shadow-sm uppercase tracking-wider transition-colors hover:brightness-95"
+                  style={{ backgroundColor: primaryColor }}
                 >
                   Write to Database
                 </button>
